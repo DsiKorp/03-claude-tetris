@@ -380,6 +380,21 @@ function lockPiece() {
     const meta = PIECE_META[current.type];
     if (meta && meta.effect) applyPowerUp(meta.effect);
   }
+  // Special-piece bonus (1x1, 3x3 hollow)
+  if (current) {
+    const meta = PIECE_META[current.type];
+    if (meta && meta.bonus) {
+      score += meta.bonus;
+      floatingTexts.push({
+        x: current.x + Math.floor(current.shape[0].length / 2),
+        y: current.y + Math.floor(current.shape.length / 2),
+        text: '+' + meta.bonus,
+        color: COLORS[current.type],
+        ttl: 1200,
+      });
+      play('hold');
+    }
+  }
   play('lock');
   clearLines();
   spawn();
@@ -483,10 +498,19 @@ function draw() {
 
 function drawNext() {
   const NB = 30;
+  const VIEW = 4; // 4x4 preview window
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
   const shape = next.shape;
-  const offX = Math.floor((4 - shape[0].length) / 2);
-  const offY = Math.floor((4 - shape.length) / 2);
+  // Compute actual bbox of non-zero cells so 3x3 pieces aren't top-left aligned.
+  let minR = shape.length, maxR = -1, minC = shape[0].length, maxC = -1;
+  for (let r = 0; r < shape.length; r++)
+    for (let c = 0; c < shape[r].length; c++)
+      if (shape[r][c]) { if (r < minR) minR = r; if (r > maxR) maxR = r; if (c < minC) minC = c; if (c > maxC) maxC = c; }
+  if (maxR < 0) return;
+  const w = maxC - minC + 1;
+  const h = maxR - minR + 1;
+  const offX = Math.floor((VIEW - w) / 2) - minC;
+  const offY = Math.floor((VIEW - h) / 2) - minR;
   for (let r = 0; r < shape.length; r++)
     for (let c = 0; c < shape[r].length; c++)
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
