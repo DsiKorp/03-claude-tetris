@@ -101,6 +101,40 @@
       </div>
     </div>
 
+    <div id="pause-menu" class="overlay hidden">
+      <div class="pause-menu__box">
+        <p class="pause-menu__title">PAUSA</p>
+        <div class="pause-menu__actions">
+          <button class="pause-menu__btn" data-action="togglePause">Reanudar</button>
+          <button class="pause-menu__btn" data-action="restart">Reiniciar</button>
+          <button class="pause-menu__btn" data-action="mainMenu">Menú principal</button>
+        </div>
+        <div class="pause-menu__sub">Nivel siguiente partida</div>
+        <div class="level-selector" id="level-selector">
+          <button class="level-btn" data-action="setLevel" data-level="1">1</button>
+          <button class="level-btn" data-action="setLevel" data-level="2">2</button>
+          <button class="level-btn" data-action="setLevel" data-level="3">3</button>
+          <button class="level-btn" data-action="setLevel" data-level="4">4</button>
+          <button class="level-btn" data-action="setLevel" data-level="5">5</button>
+          <button class="level-btn" data-action="setLevel" data-level="6">6</button>
+          <button class="level-btn" data-action="setLevel" data-level="7">7</button>
+          <button class="level-btn" data-action="setLevel" data-level="8">8</button>
+          <button class="level-btn" data-action="setLevel" data-level="9">9</button>
+          <button class="level-btn" data-action="setLevel" data-level="10">10</button>
+        </div>
+        <div class="pause-menu__controls">
+          <ul>
+            <li><kbd>&larr;</kbd><kbd>&rarr;</kbd> mover</li>
+            <li><kbd>&uarr;</kbd> / <kbd>X</kbd> rotar</li>
+            <li><kbd>&darr;</kbd> bajar</li>
+            <li><kbd>Space</kbd> caída</li>
+            <li><kbd>C</kbd> hold</li>
+            <li><kbd>P</kbd> pausa · <kbd>R</kbd> reiniciar</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
     <div id="start-screen" class="start-screen">
       <div class="start-screen__box">
         <p class="start-screen__title">TETRIS</p>
