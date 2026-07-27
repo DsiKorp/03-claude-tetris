@@ -26,7 +26,76 @@ const PIECES = [
   [[6,0,0],[6,6,6],[0,0,0]],                  // J
   [[0,0,7],[7,7,7],[0,0,0]],                  // L
   [[8,8,8],[8,0,8],[8,8,8]],                  // N (tuerca)
+  [[9,9],[9,9]],                               // 9 Bomba (2x2)
+  [[0,10,0],[10,10,10],[0,10,0]],              // 10 Rayo (3x3 cruz)
+  [[11]],                                      // 11 Tinte (1x1)
+  [[12]],                                      // 12 Gravedad (1x1)
+  [[13]],                                      // 13 Congelar (1x1)
+  [[0,14,0],[14,14,14],[0,14,0]],              // 14 P pentomino (+)
+  [[15,0,15],[15,15,15]],                     // 15 U pentomino
+  [[0,16,0],[0,16,0],[16,16,16]],             // 16 Y pentomino
+  [[17]],                                      // 17 1x1 single
+  [[18,18,18],[18,0,18],[18,18,18]],          // 18 3x3 hueca
 ];
+
+const PIECE_META = {
+  1:  { kind: 'std',     letter: '' },
+  2:  { kind: 'std',     letter: '' },
+  3:  { kind: 'std',     letter: 'T' },
+  4:  { kind: 'std',     letter: '' },
+  5:  { kind: 'std',     letter: '' },
+  6:  { kind: 'std',     letter: '' },
+  7:  { kind: 'std',     letter: '' },
+  8:  { kind: 'std',     letter: '' },
+  9:  { kind: 'power',   effect: 'bomba',    letter: 'B' },
+  10: { kind: 'power',   effect: 'rayo',     letter: 'R' },
+  11: { kind: 'power',   effect: 'tinte',    letter: 'T' },
+  12: { kind: 'power',   effect: 'gravedad', letter: 'G' },
+  13: { kind: 'power',   effect: 'congelar', letter: 'F' },
+  14: { kind: 'pentomino', letter: 'P' },
+  15: { kind: 'pentomino', letter: 'U' },
+  16: { kind: 'pentomino', letter: 'Y' },
+  17: { kind: 'special', bonus: 100, letter: '+' },
+  18: { kind: 'special', bonus: 200, letter: 'O' },
+};
+
+// Spawn weights (% of pieces). Standard tetrominoes 70% combined (8.75% each),
+// power-ups 6% each (5 = 30%), pentominoes ~4% combined, specials 1% each.
+const SPAWN_TABLE = [
+  { idx: 1,  w: 8.75 },
+  { idx: 2,  w: 8.75 },
+  { idx: 3,  w: 8.75 },
+  { idx: 4,  w: 8.75 },
+  { idx: 5,  w: 8.75 },
+  { idx: 6,  w: 8.75 },
+  { idx: 7,  w: 8.75 },
+  { idx: 8,  w: 8.75 },
+  { idx: 9,  w: 6 },
+  { idx: 10, w: 6 },
+  { idx: 11, w: 6 },
+  { idx: 12, w: 6 },
+  { idx: 13, w: 6 },
+  { idx: 14, w: 1.33 },
+  { idx: 15, w: 1.33 },
+  { idx: 16, w: 1.34 },
+  { idx: 17, w: 1 },
+  { idx: 18, w: 1 },
+];
+
+let SPAWN_CUMULATIVE = null;
+function buildSpawnTable() {
+  let total = 0;
+  for (const e of SPAWN_TABLE) total += e.w;
+  let acc = 0;
+  SPAWN_CUMULATIVE = SPAWN_TABLE.map(e => { acc += e.w / total * 100; return { idx: e.idx, upTo: acc }; });
+}
+
+function pickWeighted() {
+  if (!SPAWN_CUMULATIVE) buildSpawnTable();
+  const r = Math.random() * 100;
+  for (const e of SPAWN_CUMULATIVE) if (r <= e.upTo) return e.idx;
+  return SPAWN_CUMULATIVE[SPAWN_CUMULATIVE.length - 1].idx;
+}
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
 
@@ -42,15 +111,69 @@ const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
+const startScreen = document.getElementById('start-screen');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+
+// ---- Audio (Web Audio API) ----
+let audioCtx = null;
+const SOUND_TABLE = {
+  move:     { freq: 220, dur: 0.04, type: 'square',   gain: 0.04 },
+  rotate:   { freq: 330, dur: 0.06, type: 'square',   gain: 0.05 },
+  lock:     { freq: 110, dur: 0.05, type: 'triangle', gain: 0.06 },
+  line:     { freq: 660, dur: 0.10, type: 'square',   gain: 0.06 },
+  tetris:   { freq: 880, dur: 0.25, type: 'square',   gain: 0.07 },
+  tspin:    { freq: 700, dur: 0.18, type: 'sawtooth', gain: 0.06 },
+  perfect:  { freq: 1100, dur: 0.35, type: 'sine',    gain: 0.07 },
+  power:    { freq: 440, dur: 0.15, type: 'sawtooth', gain: 0.06 },
+  energy:   { freq: 990, dur: 0.12, type: 'sine',     gain: 0.05 },
+  win:      { freq: 880, dur: 0.5,  type: 'square',   gain: 0.07 },
+  lose:     { freq: 110, dur: 0.6,  type: 'triangle', gain: 0.07 },
+  swap:     { freq: 660, dur: 0.12, type: 'square',   gain: 0.05 },
+  hold:     { freq: 550, dur: 0.10, type: 'square',   gain: 0.05 },
+};
+
+function ensureAudio() {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      audioCtx = null;
+    }
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function playTone(freq, dur, type = 'square', gain = 0.05) {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  g.gain.value = gain;
+  g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+  osc.connect(g);
+  g.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + dur);
+}
+
+function play(name) {
+  const s = SOUND_TABLE[name];
+  if (!s) return;
+  playTone(s.freq, s.dur, s.type, s.gain);
+}
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
 }
 
 function randomPiece() {
-  const type = Math.floor(Math.random() * 8) + 1;
+  const type = pickWeighted();
   const shape = PIECES[type].map(row => [...row]);
   return { type, shape, x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2), y: 0 };
 }
@@ -262,7 +385,10 @@ function loop(ts) {
   animId = requestAnimationFrame(loop);
 }
 
-function init() {
+let mode = 'clasico';
+
+function init(startMode = 'clasico') {
+  mode = startMode;
   board = createBoard();
   score = 0;
   lines = 0;
@@ -272,13 +398,48 @@ function init() {
   dropInterval = 1000;
   dropAccum = 0;
   lastTime = performance.now();
+  // State used by later phases (initialized to safe defaults so all phases can run independently).
+  combo = -1;
+  lastClearWasTetris = false;
+  b2b = false;
+  lastMoveWasRotation = false;
+  lastKickIdx = -1;
+  pendingTSpin = false;
+  energy = 0;
+  lastEnergyMilestone = 0;
+  hold = null;
+  holdUsed = false;
+  challengeTimeLeft = 120000;
+  challengeLinesTarget = 40;
+  challengeWinFlag = false;
+  frozenUntil = 0;
+  nextQueue = [];
+  floatingTexts = [];
+  flashUntil = 0;
+  flashColor = '#fff';
+  slowmoUntil = 0;
+  previewHold = 0;
+  previewIndex = 0;
   next = randomPiece();
   spawn();
   updateHUD();
   overlay.classList.add('hidden');
+  if (startScreen) startScreen.classList.add('hidden');
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
+
+// New state vars (declared up here so init() can reset them).
+let combo, lastClearWasTetris, b2b, lastMoveWasRotation, lastKickIdx, pendingTSpin;
+let energy, lastEnergyMilestone;
+let hold, holdUsed;
+let challengeTimeLeft, challengeLinesTarget, challengeWinFlag;
+let frozenUntil;
+let nextQueue;
+let floatingTexts;
+let flashUntil, flashColor;
+let slowmoUntil;
+let previewHold, previewIndex;
 
 const controls = {
   left() {
@@ -310,7 +471,7 @@ const controls = {
     togglePause();
   },
   restart() {
-    init();
+    init(mode);
   },
 };
 
@@ -439,4 +600,17 @@ themeToggle.addEventListener('click', () => {
   localStorage.setItem('tetris-theme', isLight ? 'light' : 'dark');
 });
 
-init();
+// Start screen: show initially, then init(mode) on user choice.
+function startGame(selectedMode) {
+  ensureAudio();
+  buildSpawnTable();
+  startScreen.classList.add('hidden');
+  init(selectedMode);
+}
+
+document.querySelectorAll('.start-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const m = btn.dataset.mode || 'clasico';
+    startGame(m);
+  });
+});
