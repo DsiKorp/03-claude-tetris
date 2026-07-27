@@ -26,6 +26,140 @@ const COLORS = [
   '#4fc3f7', // 18 3x3 hueca
 ];
 
+// Skin block drawers (function declarations so SKINS can reference them).
+function neonBlockDrawer(ctx, cellX, cellY, colorIndex, size, alpha) {
+  if (!colorIndex) return;
+  const skin = SKINS[currentSkin];
+  const color = skin.pieceColors[colorIndex] || COLORS[colorIndex];
+  ctx.globalAlpha = alpha ?? 1;
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = color;
+  ctx.fillStyle = color;
+  ctx.fillRect(cellX * size + 1, cellY * size + 1, size - 2, size - 2);
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
+  ctx.globalAlpha = 1;
+}
+
+function pastelBlockDrawer(ctx, cellX, cellY, colorIndex, size, alpha) {
+  if (!colorIndex) return;
+  const skin = SKINS[currentSkin];
+  const color = skin.pieceColors[colorIndex] || COLORS[colorIndex];
+  ctx.globalAlpha = alpha ?? 1;
+  ctx.fillStyle = color;
+  ctx.fillRect(cellX * size + 1, cellY * size + 1, size - 2, size - 2);
+  // Rounded inner overlay to simulate soft edges.
+  ctx.globalAlpha = (alpha ?? 1) * 0.3;
+  const inset = 4;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  const x = cellX * size + 1 + inset;
+  const y = cellY * size + 1 + inset;
+  const w = size - 2 - inset * 2;
+  const h = size - 2 - inset * 2;
+  const r = 4;
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function pixelBlockDrawer(ctx, cellX, cellY, colorIndex, size, alpha) {
+  if (!colorIndex) return;
+  const skin = SKINS[currentSkin];
+  const color = skin.pieceColors[colorIndex] || COLORS[colorIndex];
+  ctx.globalAlpha = alpha ?? 1;
+  ctx.fillStyle = color;
+  ctx.fillRect(cellX * size + 1, cellY * size + 1, size - 2, size - 2);
+  // 4x4 checker overlay using white at 12% and black at 12%.
+  const cell = size / 4;
+  const baseX = cellX * size + 1;
+  const baseY = cellY * size + 1;
+  const total = size - 2;
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      const isLight = (r + c) % 2 === 0;
+      ctx.globalAlpha = (alpha ?? 1) * 0.12;
+      ctx.fillStyle = isLight ? '#fff' : '#000';
+      ctx.fillRect(baseX + c * cell, baseY + r * cell, cell, cell);
+    }
+  }
+  // Ensure final alpha is restored.
+  ctx.globalAlpha = 1;
+}
+
+const SKINS = {
+  retro: {
+    id: 'retro',
+    pieceColors: [
+      null,
+      '#4dd0e1', '#ffd54f', '#ba68c8', '#81c784',
+      '#ef5350', '#90caf9', '#ffb74d', '#9e9e9e',
+      '#ff5252', '#ffeb3b', '#e040fb', '#795548',
+      '#80deea', '#aed581', '#ff8a65', '#ce93d8',
+      '#fff176', '#4fc3f7',
+    ],
+    highlight: 'rgba(255,255,255,0.12)',
+    letterFill: '#000',
+    ghostAlpha: 0.2,
+    previewFrame: '#7aa2f7',
+    blockDrawer: null,
+  },
+  neon: {
+    id: 'neon',
+    pieceColors: [
+      null,
+      '#00e5ff', '#ffea00', '#e040fb', '#00ff7f',
+      '#ff1744', '#2979ff', '#ff9100', '#ffffff',
+      '#ff1744', '#ffea00', '#e040fb', '#ff9100',
+      '#00e5ff', '#00ff7f', '#ff1744', '#e040fb',
+      '#ffea00', '#2979ff',
+    ],
+    highlight: 'rgba(255,255,255,0.35)',
+    letterFill: '#000',
+    ghostAlpha: 0.25,
+    previewFrame: '#fff',
+    blockDrawer: neonBlockDrawer,
+  },
+  pastel: {
+    id: 'pastel',
+    pieceColors: [
+      null,
+      '#a8dadc', '#f1e3a4', '#cdb4db', '#b5e2c2',
+      '#f5b7b1', '#bbdefb', '#ffd9a8', '#cfd8dc',
+      '#f5b7b1', '#f1e3a4', '#cdb4db', '#d7ccc8',
+      '#a8dadc', '#b5e2c2', '#ffd9a8', '#bbdefb',
+      '#f1e3a4', '#cdb4db',
+    ],
+    highlight: 'rgba(255,255,255,0.25)',
+    letterFill: '#000',
+    ghostAlpha: 0.2,
+    previewFrame: '#ffb7c5',
+    blockDrawer: pastelBlockDrawer,
+  },
+  pixel: {
+    id: 'pixel',
+    pieceColors: [
+      null,
+      '#00838f', '#f9a825', '#7b1fa2', '#388e3c',
+      '#c62828', '#1565c0', '#e65100', '#424242',
+      '#b71c1c', '#fbc02d', '#9c27b0', '#3e2723',
+      '#00838f', '#558b2f', '#bf360c', '#6a1b9a',
+      '#f9a825', '#0277bd',
+    ],
+    highlight: 'rgba(0,0,0,0.15)',
+    letterFill: '#000',
+    ghostAlpha: 0.25,
+    previewFrame: '#7aa2f7',
+    blockDrawer: pixelBlockDrawer,
+  },
+};
+const DEFAULT_SKIN = 'retro';
+
 const PIECES = [
   null,
   [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], // I
@@ -590,19 +724,26 @@ function updateHUD() {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
+  const skin = SKINS[currentSkin];
+  if (skin && skin.blockDrawer) {
+    skin.blockDrawer(context, x, y, colorIndex, size, alpha);
+    return;
+  }
+  const color = (skin && skin.pieceColors[colorIndex]) || COLORS[colorIndex];
+  const highlight = (skin && skin.highlight) || 'rgba(255,255,255,0.12)';
+  const letterFill = (skin && skin.letterFill) || '#000';
   context.globalAlpha = alpha ?? 1;
   context.fillStyle = color;
   context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
   // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
+  context.fillStyle = highlight;
   context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
   // power-up letter overlay (9-13)
   if (colorIndex >= 9 && colorIndex <= 13) {
     const meta = PIECE_META[colorIndex];
     if (meta && meta.letter) {
       context.globalAlpha = alpha ?? 1;
-      context.fillStyle = '#000';
+      context.fillStyle = letterFill;
       context.font = `bold ${Math.floor(size * 0.55)}px 'Courier New', monospace`;
       context.textAlign = 'center';
       context.textBaseline = 'middle';
@@ -629,6 +770,12 @@ function drawGrid() {
   }
 }
 
+// Returns the ghost alpha for the current skin.
+function getGhostAlpha() {
+  const skin = SKINS[currentSkin];
+  return (skin && typeof skin.ghostAlpha === 'number') ? skin.ghostAlpha : 0.2;
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawGrid();
@@ -640,10 +787,11 @@ function draw() {
 
   // ghost
   const gy = ghostY();
+  const ghostAlpha = getGhostAlpha();
   for (let r = 0; r < current.shape.length; r++)
     for (let c = 0; c < current.shape[r].length; c++)
       if (current.shape[r][c])
-        drawBlock(ctx, current.x + c, gy + r, current.shape[r][c], BLOCK, 0.2);
+        drawBlock(ctx, current.x + c, gy + r, current.shape[r][c], BLOCK, ghostAlpha);
 
   // current piece
   for (let r = 0; r < current.shape.length; r++)
@@ -672,6 +820,8 @@ function draw() {
 function drawNext() {
   const NB = 30;
   const VIEW = 4; // 4x4 preview window
+  const skin = SKINS[currentSkin];
+  const previewFrame = (skin && skin.previewFrame) || '#7aa2f7';
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
   if (!nextQueue || nextQueue.length === 0) return;
   // If preview-5 ability is active, cycle through pieces.
@@ -681,10 +831,10 @@ function drawNext() {
     const idx = Math.min(step, nextQueue.length - 1);
     previewPiece = nextQueue[idx];
     // Frame + label
-    nextCtx.strokeStyle = '#7aa2f7';
+    nextCtx.strokeStyle = previewFrame;
     nextCtx.lineWidth = 2;
     nextCtx.strokeRect(1, 1, nextCanvas.width - 2, nextCanvas.height - 2);
-    nextCtx.fillStyle = '#7aa2f7';
+    nextCtx.fillStyle = previewFrame;
     nextCtx.font = "10px 'Courier New', monospace";
     nextCtx.textAlign = 'left';
     nextCtx.textBaseline = 'top';
@@ -948,6 +1098,7 @@ function init(startMode = 'clasico', startLevel = 1) {
   if (mode === 'reto') updateChallengeHUD();
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
+  applySkin(currentSkin);
 }
 
 // ---- Records & stats persistence ----
@@ -1137,6 +1288,7 @@ let flashUntil, flashColor;
 let slowmoUntil;
 let previewHold, previewIndex;
 let bestCombo, maxLines, currentRunCombo, pendingRecord;
+let currentSkin = DEFAULT_SKIN;
 
 const controls = {
   left() {
@@ -1201,7 +1353,14 @@ const controls = {
     const name = (input && input.value ? input.value : '').trim() || 'AAA';
     submitRecord(name);
   },
+  setSkin(id) {
+    if (typeof id !== 'string' && this && this.dataset) id = this.dataset.skin;
+    if (!id) id = currentSkin;
+    applySkin(id);
+  },
 };
+
+const SKIN_CYCLE = ['retro', 'neon', 'pastel', 'pixel'];
 
 document.addEventListener('keydown', e => {
   if (pauseMenuOpen) {
@@ -1209,6 +1368,20 @@ document.addEventListener('keydown', e => {
       e.preventDefault();
       controls.togglePause();
     }
+    return;
+  }
+  // Skin shortcuts: Alt+1..4 select a specific skin; N alone cycles.
+  if (e.altKey && (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3' || e.code === 'Digit4')) {
+    e.preventDefault();
+    const map = { Digit1: 'retro', Digit2: 'neon', Digit3: 'pastel', Digit4: 'pixel' };
+    controls.setSkin(map[e.code]);
+    return;
+  }
+  if (!e.altKey && !e.ctrlKey && !e.metaKey && e.code === 'KeyN') {
+    e.preventDefault();
+    const idx = SKIN_CYCLE.indexOf(currentSkin);
+    const next = SKIN_CYCLE[(idx + 1) % SKIN_CYCLE.length];
+    controls.setSkin(next);
     return;
   }
   switch (e.code) {
@@ -1282,6 +1455,12 @@ document.querySelectorAll('.ab-btn').forEach(el => {
   el.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); controls[el.dataset.action](); });
   el.addEventListener('click', e => e.preventDefault());
 });
+document.querySelectorAll('.skin-btn').forEach(el => {
+  el.addEventListener('click', e => {
+    e.preventDefault();
+    controls.setSkin(el.dataset.skin);
+  });
+});
 
 const TAP_MAX_MS = 250;
 const TAP_MAX_PX = 10;
@@ -1348,8 +1527,50 @@ function applyTheme(isLight) {
   }
 }
 
+function applySkin(id) {
+  if (!SKINS[id]) id = DEFAULT_SKIN;
+  currentSkin = id;
+  // Replace existing skin-* class.
+  const classes = document.body.className.split(/\s+/).filter(c => c && !c.startsWith('skin-'));
+  classes.push('skin-' + id);
+  document.body.className = classes.join(' ');
+  try {
+    localStorage.setItem('tetris-skin', id);
+  } catch (e) { /* ignore quota / private mode */ }
+  // Repaint all canvases so the change is visible immediately.
+  // Guard against module-load calls (board/current not yet initialized).
+  const ready = typeof board !== 'undefined' && board && typeof current !== 'undefined' && current;
+  if (ready && typeof draw === 'function') draw();
+  if (ready && typeof drawNext === 'function') drawNext();
+  if (ready && typeof drawHold === 'function') drawHold();
+  // Update active button highlight.
+  if (typeof updateSkinButtons === 'function') updateSkinButtons();
+}
+
+function getPieceColor(idx) {
+  const skin = SKINS[currentSkin];
+  return (skin && skin.pieceColors[idx]) || COLORS[idx] || null;
+}
+
+function updateSkinButtons() {
+  const buttons = document.querySelectorAll('.skin-btn');
+  buttons.forEach(b => {
+    b.classList.toggle('skin-btn--active', b.dataset.skin === currentSkin);
+  });
+}
+
 const savedTheme = localStorage.getItem('tetris-theme');
 applyTheme(savedTheme === 'light');
+
+// Restore persisted skin BEFORE applyTheme-style setup so the canvas reflects it
+// from the first frame.
+let savedSkin = DEFAULT_SKIN;
+try {
+  const raw = localStorage.getItem('tetris-skin');
+  if (raw && SKINS[raw]) savedSkin = raw;
+} catch (e) { /* ignore quota / private mode */ }
+currentSkin = savedSkin;
+applySkin(currentSkin);
 
 const initialStats = loadStats();
 bestCombo = initialStats.bestCombo;
