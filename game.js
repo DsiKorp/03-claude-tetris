@@ -213,13 +213,29 @@ function rotateCW(shape) {
 function tryRotate() {
   const rotated = rotateCW(current.shape);
   const kicks = [0, -1, 1, -2, 2];
-  for (const kick of kicks) {
+  for (let i = 0; i < kicks.length; i++) {
+    const kick = kicks[i];
     if (!collide(rotated, current.x + kick, current.y)) {
       current.shape = rotated;
       current.x += kick;
-      return;
+      lastMoveWasRotation = true;
+      lastKickIdx = i;
+      // T-spin detection: 3+ diagonal corners blocked around the T's center.
+      if (current.type === 3) {
+        const cx = current.x + 1, cy = current.y + 1;
+        let blocked = 0;
+        for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx < 0 || nx >= COLS || ny >= ROWS || (ny >= 0 && board[ny][nx])) blocked++;
+        }
+        pendingTSpin = blocked >= 3 || (blocked === 2 && i > 0);
+      } else {
+        pendingTSpin = false;
+      }
+      return true;
     }
   }
+  return false;
 }
 
 function merge() {
@@ -344,11 +360,57 @@ function clearLines() {
   }
   if (cleared) {
     lines += cleared;
-    score += (LINE_SCORES[cleared] || 0) * level;
+    const isTetris = cleared === 4;
+    const isTSpin = pendingTSpin && current && current.type === 3 && lastMoveWasRotation;
+    const base = (LINE_SCORES[cleared] || 0) * level;
+    const comboMult = 1 + Math.max(combo, 0) * 0.5;
+    const b2bMult = (b2b && isTetris) ? 1.5 : 1;
+    let gained = base * comboMult * b2bMult;
+    // Perfect Clear
+    let isPC = false;
+    for (let r = 0; r < ROWS && !isPC; r++)
+      for (let c = 0; c < COLS && !isPC; c++)
+        if (board[r][c]) isPC = true;
+    isPC = !isPC;
+    if (isPC) gained += 2000 * level;
+    if (isTSpin) gained += 400 * level;
+    score += gained;
+    // Floating text
+    if (isTSpin) {
+      floatingTexts.push({ x: current.x + 1, y: current.y, text: 'T-SPIN +' + Math.floor(400 * level), color: '#ba68c8', ttl: 1100 });
+      play('tspin');
+    } else if (isPC) {
+      floatingTexts.push({ x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2), text: 'PERFECT CLEAR!', color: '#80deea', ttl: 1400 });
+      play('perfect');
+    } else if (isTetris) {
+      floatingTexts.push({ x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2), text: 'TETRIS' + (b2bMult > 1 ? ' B2B' : ''), color: '#ffd54f', ttl: 1100 });
+      play('tetris');
+    } else {
+      floatingTexts.push({ x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2), text: '+' + Math.floor(gained), color: '#fff', ttl: 700 });
+      play('line');
+    }
+    // Combo tracking
+    combo++;
+    if (combo > 0) {
+      floatingTexts.push({ x: Math.floor(COLS / 2), y: Math.max(0, Math.floor(ROWS / 2) - 3), text: 'x' + combo + ' COMBO', color: '#fff176', ttl: 900 });
+    }
+    // B2B tracking: only consecutive Tetrises keep the chain.
+    if (isTetris) {
+      b2b = lastClearWasTetris;
+    } else {
+      b2b = false;
+    }
+    lastClearWasTetris = isTetris;
+    // Level & speed
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
+  } else {
+    // No line clear this lock: reset combo (but only if the piece actually locked, not during touch drags etc.)
+    if (current) combo = -1;
   }
+  pendingTSpin = false;
+  lastMoveWasRotation = false;
 }
 
 function ghostY() {
@@ -626,25 +688,35 @@ let previewHold, previewIndex;
 const controls = {
   left() {
     if (paused || gameOver || !current) return;
-    if (!collide(current.shape, current.x - 1, current.y)) current.x--;
+    if (!collide(current.shape, current.x - 1, current.y)) {
+      current.x--;
+      lastMoveWasRotation = false;
+      play('move');
+    }
     updateHUD();
   },
   right() {
     if (paused || gameOver || !current) return;
-    if (!collide(current.shape, current.x + 1, current.y)) current.x++;
+    if (!collide(current.shape, current.x + 1, current.y)) {
+      current.x++;
+      lastMoveWasRotation = false;
+      play('move');
+    }
     updateHUD();
   },
   rotate() {
     if (paused || gameOver || !current) return;
-    tryRotate();
+    if (tryRotate()) play('rotate');
     updateHUD();
   },
   softDrop() {
     if (paused || gameOver || !current) return;
+    lastMoveWasRotation = false;
     softDrop();
   },
   hardDrop() {
     if (paused || gameOver || !current) return;
+    lastMoveWasRotation = false;
     hardDrop();
     updateHUD();
   },
