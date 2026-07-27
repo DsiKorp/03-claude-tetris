@@ -5,12 +5,20 @@ Implementación del clásico **Tetris** en JavaScript vanilla, usando HTML5 Canv
 ![Tech](https://img.shields.io/badge/HTML5-Canvas-orange)
 ![Tech](https://img.shields.io/badge/CSS3-blueviolet)
 ![Tech](https://img.shields.io/badge/JavaScript-Vanilla-yellow)
+![Deploy](https://img.shields.io/badge/GitHub-Pages-success?logo=github)
+
+## 🎮 Juega ahora
+
+**Demo en vivo:** [https://dsikorp.github.io/03-claude-tetris/](https://dsikorp.github.io/03-claude-tetris/)
+
+Desplegado automáticamente con **GitHub Actions + GitHub Pages** en cada `push` a `main`.
 
 ---
 
 ## Tabla de contenidos
 
 - [Tetris](#tetris)
+  - [🎮 Juega ahora](#-juega-ahora)
   - [Tabla de contenidos](#tabla-de-contenidos)
   - [Qué hace el proyecto](#qué-hace-el-proyecto)
   - [Cómo ejecutar el juego](#cómo-ejecutar-el-juego)
@@ -24,6 +32,7 @@ Implementación del clásico **Tetris** en JavaScript vanilla, usando HTML5 Canv
     - [Flujo del juego](#flujo-del-juego)
   - [Tecnologías](#tecnologías)
   - [Estructura del proyecto](#estructura-del-proyecto)
+  - [Despliegue en GitHub Pages](#despliegue-en-github-pages)
   - [Personalización](#personalización)
   - [Licencia](#licencia)
 
@@ -155,12 +164,49 @@ Cuando una pieza recién generada ya colisiona al aparecer (`spawn`), se dispara
 ## Estructura del proyecto
 
 ```
-03-tetris/
-├── index.html      # Estructura del DOM y canvas
-├── style.css       # Estilos del juego (dark theme)
-├── game.js         # Toda la lógica del Tetris (~300 líneas)
+03-claude-tetris/
+├── index.html                 # Estructura del DOM y canvas
+├── style.css                  # Estilos del juego (dark theme)
+├── game.js                    # Toda la lógica del Tetris (~300 líneas)
+├── .github/
+│   └── workflows/
+│       └── deploy.yml         # CI/CD: deploy a GitHub Pages
 └── README.md
 ```
+
+---
+
+## Despliegue en GitHub Pages
+
+El proyecto se publica automáticamente en **GitHub Pages** cada vez que se hace `push` a la rama `main`, mediante un workflow de GitHub Actions.
+
+### Cómo funciona
+
+1. **Workflow** (`.github/workflows/deploy.yml`): se dispara en cada `push` a `main` (y manualmente desde la pestaña _Actions_).
+2. **Permisos** del job: `contents: read`, `pages: write`, `id-token: write` (necesarios para `actions/deploy-pages`).
+3. **Pasos**:
+   - `actions/checkout@v4` descarga el código.
+   - `actions/configure-pages@v5` prepara la configuración de Pages.
+   - `actions/upload-pages-artifact@v3` empaqueta el sitio (carpeta raíz, ya que es 100% estático).
+   - `actions/deploy-pages@v4` publica el artefacto en la URL del entorno `github-pages`.
+4. **URL pública**: `https://<usuario>.github.io/03-claude-tetris/`
+
+### Configuración inicial (una sola vez)
+
+Si clonas este repo y quieres desplegar el tuyo:
+
+1. Sube el código a un repositorio en GitHub.
+2. En **Settings → Pages**, elige **Source: GitHub Actions**.
+3. Asegúrate de que en **Settings → Actions → General** los _workflow permissions_ permitan **Read and write permissions** (necesario para que el job publique).
+4. Haz `git push origin main` — el primer deploy se ejecuta en ~30 segundos.
+
+### Despliegues manuales
+
+Desde la pestaña **Actions** del repo, selecciona el workflow _"Deploy to GitHub Pages"_ y pulsa **Run workflow**. Útil para reintentar sin hacer un nuevo commit.
+
+### Revertir un deploy
+
+Como el deploy se genera desde el último commit de `main`, basta con hacer un `git revert` + `push` para publicar la versión anterior.
 
 ---
 
