@@ -131,8 +131,12 @@ const energySegs = Array.from(document.querySelectorAll('.energy-seg'));
 const abilityStatusEl = document.getElementById('ability-status');
 const holdCanvas = document.getElementById('hold-canvas');
 const holdCtx = holdCanvas ? holdCanvas.getContext('2d') : null;
+const pauseMenuEl = document.getElementById('pause-menu');
+const levelSelectorEl = document.getElementById('level-selector');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+let pauseMenuOpen = false;
+let nextStartLevel = 1;
 
 // ---- Audio (Web Audio API) ----
 let audioCtx = null;
@@ -754,18 +758,48 @@ function endGame() {
 
 function togglePause() {
   if (gameOver) return;
-  paused = !paused;
-  if (paused) {
-    cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
-  } else {
-    overlay.classList.add('hidden');
-    lastTime = performance.now();
-    dropAccum = 0;
-    animId = requestAnimationFrame(loop);
+  if (pauseMenuOpen) {
+    closePauseMenu();
+    return;
   }
+  openPauseMenu();
+}
+
+function openPauseMenu() {
+  if (gameOver) return;
+  pauseMenuOpen = true;
+  paused = true;
+  cancelAnimationFrame(animId);
+  if (overlay) overlay.classList.add('hidden');
+  if (pauseMenuEl) {
+    pauseMenuEl.classList.remove('hidden');
+    markActiveLevelBtn();
+  }
+}
+
+function closePauseMenu() {
+  if (!pauseMenuOpen) return;
+  pauseMenuOpen = false;
+  paused = false;
+  if (pauseMenuEl) pauseMenuEl.classList.add('hidden');
+  lastTime = performance.now();
+  dropAccum = 0;
+  animId = requestAnimationFrame(loop);
+}
+
+function markActiveLevelBtn() {
+  if (!levelSelectorEl) return;
+  const btns = levelSelectorEl.querySelectorAll('.level-btn');
+  btns.forEach(btn => {
+    const n = parseInt(btn.dataset.level, 10);
+    btn.classList.toggle('level-btn--active', n === nextStartLevel);
+  });
+}
+
+function setNextStartLevel(n) {
+  const v = Math.max(1, Math.min(10, parseInt(n, 10) || 1));
+  nextStartLevel = v;
+  markActiveLevelBtn();
 }
 
 function formatTime(ms) {
@@ -851,15 +885,16 @@ function loop(ts) {
 
 let mode = 'clasico';
 
-function init(startMode = 'clasico') {
+function init(startMode = 'clasico', startLevel = 1) {
   mode = startMode;
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  level = startLevel;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  pauseMenuOpen = false;
+  dropInterval = Math.max(100, 1000 - (level - 1) * 90);
   dropAccum = 0;
   lastTime = performance.now();
   // State used by later phases (initialized to safe defaults so all phases can run independently).
@@ -892,6 +927,7 @@ function init(startMode = 'clasico') {
   drawHold();
   updateHoldDim();
   overlay.classList.add('hidden');
+  if (pauseMenuEl) pauseMenuEl.classList.add('hidden');
   if (startScreen) startScreen.classList.add('hidden');
   if (challengeTimeSection) challengeTimeSection.style.display = mode === 'reto' ? '' : 'none';
   if (challengeTargetSection) challengeTargetSection.style.display = mode === 'reto' ? '' : 'none';
@@ -914,7 +950,7 @@ let previewHold, previewIndex;
 
 const controls = {
   left() {
-    if (paused || gameOver || !current) return;
+    if (pauseMenuOpen || paused || gameOver || !current) return;
     if (!collide(current.shape, current.x - 1, current.y)) {
       current.x--;
       lastMoveWasRotation = false;
@@ -923,7 +959,7 @@ const controls = {
     updateHUD();
   },
   right() {
-    if (paused || gameOver || !current) return;
+    if (pauseMenuOpen || paused || gameOver || !current) return;
     if (!collide(current.shape, current.x + 1, current.y)) {
       current.x++;
       lastMoveWasRotation = false;
@@ -932,28 +968,40 @@ const controls = {
     updateHUD();
   },
   rotate() {
-    if (paused || gameOver || !current) return;
+    if (pauseMenuOpen || paused || gameOver || !current) return;
     if (tryRotate()) play('rotate');
     updateHUD();
   },
   softDrop() {
-    if (paused || gameOver || !current) return;
+    if (pauseMenuOpen || paused || gameOver || !current) return;
     lastMoveWasRotation = false;
     softDrop();
   },
   hardDrop() {
-    if (paused || gameOver || !current) return;
+    if (pauseMenuOpen || paused || gameOver || !current) return;
     lastMoveWasRotation = false;
     hardDrop();
     updateHUD();
   },
   togglePause() {
     if (gameOver) return;
-    togglePause();
+    if (pauseMenuOpen) { closePauseMenu(); return; }
+    openPauseMenu();
   },
   restart() {
-    init(mode);
+    init(mode, nextStartLevel);
   },
+  mainMenu() {
+    if (pauseMenuEl) pauseMenuEl.classList.add('hidden');
+    cancelAnimationFrame(animId);
+    pauseMenuOpen = false;
+    paused = false;
+    gameOver = false;
+    mode = null;
+    if (startScreen) startScreen.classList.remove('hidden');
+    if (overlay) overlay.classList.add('hidden');
+  },
+  setLevel(n) { setNextStartLevel(n); },
   ability1() { ability1(); },
   ability2() { ability2(); },
   ability3() { ability3(); },
@@ -961,6 +1009,13 @@ const controls = {
 };
 
 document.addEventListener('keydown', e => {
+  if (pauseMenuOpen) {
+    if (e.code === 'Escape' || e.code === 'KeyP') {
+      e.preventDefault();
+      controls.togglePause();
+    }
+    return;
+  }
   switch (e.code) {
     case 'ArrowLeft':  e.preventDefault(); controls.left();        break;
     case 'ArrowRight': e.preventDefault(); controls.right();       break;
@@ -968,6 +1023,7 @@ document.addEventListener('keydown', e => {
     case 'ArrowUp':
     case 'KeyX':                           controls.rotate();      break;
     case 'Space':      e.preventDefault(); controls.hardDrop();    break;
+    case 'Escape':
     case 'KeyP':                           controls.togglePause(); break;
     case 'KeyR':                           controls.restart();     break;
     case 'Digit1':                         controls.ability1();    break;
@@ -990,12 +1046,21 @@ function bindTouchButton(el) {
   if (!action || !controls[action]) return;
   let timer = null;
 
+  const invoke = () => {
+    if (action === 'setLevel') {
+      const lvl = parseInt(el.dataset.level, 10);
+      controls.setLevel(lvl);
+    } else {
+      controls[action]();
+    }
+  };
+
   const start = e => {
     e.preventDefault();
-    controls[action]();
+    invoke();
     if (REPEAT_ACTIONS.has(action)) {
       timer = setTimeout(function tick() {
-        controls[action]();
+        invoke();
         timer = setTimeout(tick, REPEAT_RATE_MS);
       }, REPEAT_DELAY_MS);
     }
@@ -1016,6 +1081,8 @@ function bindTouchButton(el) {
 }
 
 document.querySelectorAll('.tc-btn').forEach(bindTouchButton);
+// Pause-menu buttons: wires controls.togglePause, controls.restart, controls.mainMenu and controls.setLevel.
+document.querySelectorAll('#pause-menu [data-action]').forEach(bindTouchButton);
 document.querySelectorAll('.ab-btn').forEach(el => {
   el.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); controls[el.dataset.action](); });
   el.addEventListener('click', e => e.preventDefault());
@@ -1096,17 +1163,19 @@ themeToggle.addEventListener('click', () => {
 });
 
 // Start screen: show initially, then init(mode) on user choice.
-function startGame(selectedMode) {
+function startGame(selectedMode, selectedLevel = 1) {
   ensureAudio();
   buildSpawnTable();
   startScreen.classList.add('hidden');
-  init(selectedMode);
+  init(selectedMode, selectedLevel);
 }
 
 document.querySelectorAll('.start-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const m = btn.dataset.mode || 'clasico';
-    startGame(m);
+    const lvl = parseInt(btn.dataset.level, 10) || 1;
+    setNextStartLevel(lvl);
+    startGame(m, lvl);
   });
 });
 
