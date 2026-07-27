@@ -396,3 +396,122 @@ kbd {
     margin-top: 12px;
   }
 }
+
+/* ---- Gestures help panel (mobile only) ---- */
+.gestures-help {
+  display: none;
+  width: 100%;
+  max-width: 360px;
+  padding: 10px 12px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-radius: 6px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gestures-help .label {
+  color: var(--label);
+  letter-spacing: 2px;
+}
+
+.gestures-help ul {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+}
+
+.gestures-help li {
+  font-size: 11px;
+  color: var(--controls-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gh-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  background: var(--toggle-bg);
+  border: 1px solid var(--toggle-border);
+  border-radius: 4px;
+  position: relative;
+}
+
+.gh-tap::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: #7aa2f7;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px var(--toggle-bg);
+}
+
+.gh-swipe-lr::before,
+.gh-swipe-d::after {
+  content: '';
+  position: absolute;
+  background: #7aa2f7;
+  border-radius: 2px;
+}
+
+.gh-swipe-lr::before {
+  width: 18px;
+  height: 3px;
+  top: 50%;
+  left: 3px;
+  transform: translateY(-50%);
+  box-shadow:
+    -3px -3px 0 0 var(--toggle-bg), -3px -3px 0 1px #7aa2f7,
+    -3px 3px 0 0 var(--toggle-bg), -3px 3px 0 1px #7aa2f7;
+}
+
+.gh-swipe-d::after {
+  width: 3px;
+  height: 18px;
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow:
+    -3px -3px 0 0 var(--toggle-bg), -3px -3px 0 1px #7aa2f7,
+    3px -3px 0 0 var(--toggle-bg), 3px -3px 0 1px #7aa2f7;
+}
+
+.gh-hold::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #7aa2f7;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(122, 162, 247, 0.35);
+  animation: gh-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes gh-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(122, 162, 247, 0.15); }
+  50%      { box-shadow: 0 0 0 6px rgba(122, 162, 247, 0.45); }
+}
+
+/* Show gestures help on touch / small screens only */
+@media (hover: none) and (pointer: coarse) {
+  .gestures-help { display: flex; }
+}
+
+@media (max-width: 720px) {
+  .gestures-help { display: flex; }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .gestures-help { display: none; }
+}
