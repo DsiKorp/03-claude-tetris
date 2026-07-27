@@ -892,3 +892,80 @@ kbd {
     width: 100%;
   }
 }
+
+/* ---- Skin selector (start screen) ---- */
+.skin-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  align-items: center;
+  width: 100%;
+}
+
+.skin-selector__label {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--label);
+  font-weight: 600;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.skin-selector__row {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.skin-btn {
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.05s;
+}
+
+.skin-btn:hover,
+.skin-btn:active {
+  border-color: #7aa2f7;
+  color: #7aa2f7;
+  transform: scale(0.98);
+}
+
+.skin-btn--active {
+  background: var(--kbd-bg);
+  border-color: #7aa2f7;
+  color: #7aa2f7;
+}
+
+/* ---- Per-skin canvas colors ---- */
+body.skin-retro {
+  --canvas-bg: #1a1a25;
+  --grid-line: #22222e;
+}
+
+body.skin-neon {
+  --canvas-bg: #000;
+  --grid-line: #1a1a2e;
+}
+
+body.skin-pastel {
+  --canvas-bg: #fafafa;
+  --grid-line: #e0e0e0;
+}
+
+body.skin-pixel {
+  --canvas-bg: #1a1a25;
+  --grid-line: #2a2a3a;
+}
