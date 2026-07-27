@@ -97,6 +97,12 @@
       <div class="overlay-box">
         <p id="overlay-title">GAME OVER</p>
         <p id="overlay-score"></p>
+        <div id="record-name-row" class="record-name-row hidden">
+          <span>¡Nuevo récord! Tu nombre:</span>
+          <input id="record-name" class="record-name-input" maxlength="20" placeholder="AAA" />
+          <button id="record-submit" class="record-submit-btn">Guardar</button>
+        </div>
+        <div class="records-list" id="records-list-gameover"></div>
         <button id="restart-btn">Reiniciar</button>
       </div>
     </div>
@@ -141,6 +147,11 @@
         <p class="start-screen__sub">Elige modo</p>
         <button class="start-btn" data-mode="clasico">Clásico</button>
         <button class="start-btn" data-mode="reto">Reto: 40 líneas · 2 min</button>
+        <section id="records-section" class="records-section">
+          <h3 class="records-title">MEJORES PUNTUACIONES</h3>
+          <div class="records-list" id="records-list-start"></div>
+          <button class="record-reset-btn" id="record-reset-btn">Borrar records</button>
+        </section>
         <p class="start-screen__hint">Controles: ← → mover · ↑ rotar · ↓ bajar · Espacio caída · C hold · P pausa</p>
       </div>
     </div>
