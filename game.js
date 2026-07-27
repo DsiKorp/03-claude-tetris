@@ -122,6 +122,11 @@ const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
 const startScreen = document.getElementById('start-screen');
+const challengeTimeSection = document.getElementById('challenge-time-section');
+const challengeTargetSection = document.getElementById('challenge-target-section');
+const timeEl = document.getElementById('time');
+const linesDoneEl = document.getElementById('lines-done');
+const linesTargetEl = document.getElementById('lines-target');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
@@ -602,6 +607,35 @@ function togglePause() {
   }
 }
 
+function formatTime(ms) {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  const mm = Math.floor(s / 60);
+  const ss = s % 60;
+  return `${mm}:${ss.toString().padStart(2, '0')}`;
+}
+
+function updateChallengeHUD() {
+  if (mode !== 'reto') return;
+  if (timeEl) timeEl.textContent = formatTime(challengeTimeLeft);
+  if (linesDoneEl) linesDoneEl.textContent = Math.min(lines, challengeLinesTarget);
+  if (linesTargetEl) linesTargetEl.textContent = challengeLinesTarget;
+}
+
+function endChallenge(win) {
+  gameOver = true;
+  cancelAnimationFrame(animId);
+  if (win) {
+    overlayTitle.textContent = '¡VICTORIA!';
+    overlayScore.textContent = `${challengeLinesTarget} líneas en ${formatTime(challengeTimeLeft)} · ${score.toLocaleString()} pts`;
+    play('win');
+  } else {
+    overlayTitle.textContent = 'GAME OVER';
+    overlayScore.textContent = `Conseguiste ${lines}/${challengeLinesTarget} líneas · ${score.toLocaleString()} pts`;
+    play('lose');
+  }
+  overlay.classList.remove('hidden');
+}
+
 function loop(ts) {
   const dt = ts - lastTime;
   lastTime = ts;
@@ -622,6 +656,17 @@ function loop(ts) {
     for (let i = floatingTexts.length - 1; i >= 0; i--) {
       floatingTexts[i].ttl -= dt;
       if (floatingTexts[i].ttl <= 0) floatingTexts.splice(i, 1);
+    }
+  }
+  // Challenge mode timer
+  if (mode === 'reto' && !paused && !gameOver) {
+    challengeTimeLeft -= dt;
+    updateChallengeHUD();
+    if (lines >= challengeLinesTarget) {
+      endChallenge(true);
+    } else if (challengeTimeLeft <= 0) {
+      challengeTimeLeft = 0;
+      endChallenge(false);
     }
   }
   if (gameOver) return;
@@ -669,6 +714,9 @@ function init(startMode = 'clasico') {
   updateHUD();
   overlay.classList.add('hidden');
   if (startScreen) startScreen.classList.add('hidden');
+  if (challengeTimeSection) challengeTimeSection.style.display = mode === 'reto' ? '' : 'none';
+  if (challengeTargetSection) challengeTargetSection.style.display = mode === 'reto' ? '' : 'none';
+  if (mode === 'reto') updateChallengeHUD();
   cancelAnimationFrame(animId);
   animId = requestAnimationFrame(loop);
 }
@@ -867,4 +915,18 @@ document.querySelectorAll('.start-btn').forEach(btn => {
     const m = btn.dataset.mode || 'clasico';
     startGame(m);
   });
+});
+
+// Adjust challenge timer when the tab becomes visible again (compensate rAF throttling).
+let lastVisibleAt = Date.now();
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    lastVisibleAt = Date.now();
+  } else {
+    const elapsed = Date.now() - lastVisibleAt;
+    if (mode === 'reto' && !paused && !gameOver) {
+      challengeTimeLeft -= elapsed;
+    }
+    lastTime = performance.now();
+  }
 });
