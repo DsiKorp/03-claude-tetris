@@ -110,6 +110,13 @@ body {
   border-radius: 4px;
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
   transition: background 0.25s, border-color 0.25s;
+  touch-action: none;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  aspect-ratio: 1 / 2;
+  width: 100%;
+  max-width: 300px;
+  height: auto;
 }
 
 /* ---- Panel lateral ---- */
@@ -179,6 +186,12 @@ kbd {
   transition: background 0.25s, color 0.25s, border-color 0.25s;
 }
 
+.controls__touch {
+  opacity: 0.7;
+  font-size: 11px;
+  font-style: italic;
+}
+
 /* ---- Overlay ---- */
 .overlay {
   position: absolute;
@@ -233,4 +246,153 @@ kbd {
 
 #restart-btn:hover {
   background: #9bbdff;
+}
+
+/* ---- Touch controls (mobile) ---- */
+.touch-controls {
+  display: none;
+  gap: 16px;
+  padding: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 360px;
+}
+
+.touch-controls__dpad {
+  display: grid;
+  grid-template-columns: 56px 56px 56px;
+  grid-template-rows: 56px 56px;
+  grid-template-areas:
+    ".    down .   "
+    "left down right";
+  gap: 8px;
+}
+
+.touch-controls__dpad .tc-btn[data-action="left"]     { grid-area: left; }
+.touch-controls__dpad .tc-btn[data-action="right"]    { grid-area: right; }
+.touch-controls__dpad .tc-btn[data-action="softDrop"] { grid-area: down; }
+
+.touch-controls__actions {
+  display: grid;
+  grid-template-columns: 56px 56px;
+  grid-template-rows: 56px 56px;
+  gap: 8px;
+}
+
+.tc-btn {
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  color: var(--kbd-text);
+  border-radius: 6px;
+  font-size: 18px;
+  font-family: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s, transform 0.05s, color 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.tc-btn:active {
+  transform: scale(0.94);
+  background: #7aa2f7;
+  color: #0f0f17;
+}
+
+.tc-btn--small {
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+/* Show on touch-primary devices and small screens */
+@media (hover: none) and (pointer: coarse) {
+  .touch-controls { display: flex; }
+}
+
+@media (max-width: 720px) {
+  .touch-controls { display: flex; }
+}
+
+/* Hide on fine-pointer devices (mouse/trackpad) */
+@media (hover: hover) and (pointer: fine) {
+  .touch-controls { display: none; }
+}
+
+/* ---- Responsive layout: mobile portrait ---- */
+@media (max-width: 720px) {
+  body {
+    padding: 8px;
+    padding-left: calc(8px + env(safe-area-inset-left));
+    padding-right: calc(8px + env(safe-area-inset-right));
+    align-items: flex-start;
+  }
+
+  .wrapper {
+    width: 100%;
+    max-width: 360px;
+    gap: 8px;
+  }
+
+  .game-title {
+    font-size: 24px;
+    letter-spacing: 6px;
+  }
+
+  .game-container {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .panel {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 0;
+  }
+
+  .panel-section {
+    flex: 1 1 30%;
+    min-width: 0;
+  }
+
+  .panel-section.controls {
+    display: none;
+  }
+
+  .panel-section:has(#next-canvas) {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  #next-canvas {
+    width: 48px !important;
+    height: 48px !important;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+  }
+
+  .value {
+    font-size: 20px;
+  }
+
+  .touch-controls {
+    flex-direction: row;
+  }
+}
+
+/* Landscape tablet: keep side-by-side and tuck controls below the panel */
+@media (min-width: 721px) and (orientation: landscape) and (hover: none) {
+  .touch-controls {
+    display: flex;
+    margin-top: 12px;
+  }
 }

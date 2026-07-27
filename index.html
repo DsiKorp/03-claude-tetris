@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Tetris</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -38,15 +38,31 @@
         <div class="panel-section controls">
           <span class="label">CONTROLS</span>
           <ul>
-            <li><kbd>←</kbd><kbd>→</kbd> mover</li>
-            <li><kbd>↑</kbd> rotar</li>
-            <li><kbd>↓</kbd> bajar</li>
+            <li><kbd>&larr;</kbd><kbd>&rarr;</kbd> mover</li>
+            <li><kbd>&uarr;</kbd> / <kbd>X</kbd> rotar</li>
+            <li><kbd>&darr;</kbd> bajar</li>
             <li><kbd>Space</kbd> caída</li>
-            <li><kbd>P</kbd> pausa</li>
+            <li><kbd>P</kbd> pausa · <kbd>R</kbd> reiniciar</li>
+            <li class="controls__touch">Tap tablero: rotar</li>
+            <li class="controls__touch">Swipe: mover / caída</li>
           </ul>
         </div>
       </aside>
     </div>
+
+    <nav class="touch-controls" aria-label="Controles táctiles">
+      <div class="touch-controls__dpad">
+        <button class="tc-btn" data-action="left" aria-label="Mover izquierda">&#9664;</button>
+        <button class="tc-btn" data-action="softDrop" aria-label="Bajar">&#9660;</button>
+        <button class="tc-btn" data-action="right" aria-label="Mover derecha">&#9654;</button>
+      </div>
+      <div class="touch-controls__actions">
+        <button class="tc-btn tc-btn--wide" data-action="rotate" aria-label="Rotar">&#8635;</button>
+        <button class="tc-btn tc-btn--wide" data-action="hardDrop" aria-label="Caída">DROP</button>
+        <button class="tc-btn tc-btn--small" data-action="togglePause" aria-label="Pausa">P</button>
+        <button class="tc-btn tc-btn--small" data-action="restart" aria-label="Reiniciar">R</button>
+      </div>
+    </nav>
 
     <div id="overlay" class="overlay hidden">
       <div class="overlay-box">

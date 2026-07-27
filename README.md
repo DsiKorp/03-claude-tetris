@@ -94,6 +94,38 @@ Después abre `http://localhost:8000` en el navegador.
 | `↓`       | Soft drop (bajar más rápido)      |
 | `Espacio` | Hard drop (caída instantánea)     |
 | `P`       | Pausar / reanudar                 |
+| `R`       | Reiniciar la partida              |
+
+### Controles en móvil
+
+El juego es totalmente jugable en pantallas táctiles. Dispone de dos sistemas que se pueden usar combinados:
+
+**D-pad y botones en pantalla** (aparecen automáticamente en dispositivos táctiles o pantallas `<= 720px`):
+
+- `◀` `▶` — mover izquierda / derecha (mantener pulsado = autorepetición)
+- `▼` — soft drop (mantener pulsado = autorepetición)
+- `↻` — rotar
+- `DROP` — hard drop
+- `P` — pausa
+- `R` — reiniciar
+
+**Gestos sobre el tablero:**
+
+- **Tap** — rotar
+- **Swipe horizontal** — mover una celda
+- **Swipe hacia abajo** — hard drop
+- **Mantener pulsado** — soft drop (una fila al alcanzar 350 ms)
+
+**Diseño responsive:** por debajo de `720px` el HUD (SCORE / LINES / LEVEL / NEXT) pasa a una fila horizontal encima del tablero, los controles en pantalla aparecen debajo y el tablero se reescala manteniendo la proporción 10:20. En escritorio con ratón los controles táctiles se ocultan automáticamente.
+
+---
+
+## Compatibilidad móvil
+
+- Viewport con `viewport-fit=cover` y `env(safe-area-inset-*)` para teléfonos con notch.
+- `touch-action: none` en el tablero evita el scroll/zoom del navegador al jugar.
+- Botones con `touch-action: manipulation` para suprimir el zoom por doble-tap.
+- Render crisp con `image-rendering: pixelated` al escalar el canvas por CSS.
 
 ---
 

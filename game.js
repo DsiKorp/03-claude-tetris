@@ -31,6 +31,7 @@ const PIECES = [
 const LINE_SCORES = [0, 100, 300, 500, 800];
 
 const canvas = document.getElementById('board');
+const boardEl = canvas;
 const ctx = canvas.getContext('2d');
 const nextCanvas = document.getElementById('next-canvas');
 const nextCtx = nextCanvas.getContext('2d');
@@ -231,14 +232,16 @@ function endGame() {
 function togglePause() {
   if (gameOver) return;
   paused = !paused;
-  if (!paused) {
-    lastTime = performance.now();
-    loop(lastTime);
-  } else {
+  if (paused) {
     cancelAnimationFrame(animId);
     overlayTitle.textContent = 'PAUSA';
     overlayScore.textContent = '';
     overlay.classList.remove('hidden');
+  } else {
+    overlay.classList.add('hidden');
+    lastTime = performance.now();
+    dropAccum = 0;
+    animId = requestAnimationFrame(loop);
   }
 }
 
@@ -277,32 +280,139 @@ function init() {
   animId = requestAnimationFrame(loop);
 }
 
+const controls = {
+  left() {
+    if (paused || gameOver || !current) return;
+    if (!collide(current.shape, current.x - 1, current.y)) current.x--;
+    updateHUD();
+  },
+  right() {
+    if (paused || gameOver || !current) return;
+    if (!collide(current.shape, current.x + 1, current.y)) current.x++;
+    updateHUD();
+  },
+  rotate() {
+    if (paused || gameOver || !current) return;
+    tryRotate();
+    updateHUD();
+  },
+  softDrop() {
+    if (paused || gameOver || !current) return;
+    softDrop();
+  },
+  hardDrop() {
+    if (paused || gameOver || !current) return;
+    hardDrop();
+    updateHUD();
+  },
+  togglePause() {
+    if (gameOver) return;
+    togglePause();
+  },
+  restart() {
+    init();
+  },
+};
+
 document.addEventListener('keydown', e => {
-  if (e.code === 'KeyP') { togglePause(); return; }
-  if (paused || gameOver) return;
   switch (e.code) {
-    case 'ArrowLeft':
-      if (!collide(current.shape, current.x - 1, current.y)) current.x--;
-      break;
-    case 'ArrowRight':
-      if (!collide(current.shape, current.x + 1, current.y)) current.x++;
-      break;
-    case 'ArrowDown':
-      softDrop();
-      break;
+    case 'ArrowLeft':  e.preventDefault(); controls.left();        break;
+    case 'ArrowRight': e.preventDefault(); controls.right();       break;
+    case 'ArrowDown':                      controls.softDrop();    break;
     case 'ArrowUp':
-    case 'KeyX':
-      tryRotate();
-      break;
-    case 'Space':
-      e.preventDefault();
-      hardDrop();
-      break;
+    case 'KeyX':                           controls.rotate();      break;
+    case 'Space':      e.preventDefault(); controls.hardDrop();    break;
+    case 'KeyP':                           controls.togglePause(); break;
+    case 'KeyR':                           controls.restart();     break;
   }
-  updateHUD();
 });
 
-restartBtn.addEventListener('click', init);
+restartBtn.addEventListener('click', controls.restart);
+
+const REPEAT_DELAY_MS = 170;
+const REPEAT_RATE_MS = 50;
+const REPEAT_ACTIONS = new Set(['left', 'right', 'softDrop']);
+
+function bindTouchButton(el) {
+  const action = el.dataset.action;
+  if (!action || !controls[action]) return;
+  let timer = null;
+
+  const start = e => {
+    e.preventDefault();
+    controls[action]();
+    if (REPEAT_ACTIONS.has(action)) {
+      timer = setTimeout(function tick() {
+        controls[action]();
+        timer = setTimeout(tick, REPEAT_RATE_MS);
+      }, REPEAT_DELAY_MS);
+    }
+  };
+
+  const cancel = () => {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+  };
+
+  el.addEventListener('pointerdown', start);
+  el.addEventListener('pointerup', cancel);
+  el.addEventListener('pointercancel', cancel);
+  el.addEventListener('pointerleave', cancel);
+  el.addEventListener('click', e => e.preventDefault());
+}
+
+document.querySelectorAll('.tc-btn').forEach(bindTouchButton);
+
+const TAP_MAX_MS = 250;
+const TAP_MAX_PX = 10;
+const SWIPE_MIN_PX = 28;
+const SWIPE_VDOWN_PX = 40;
+const LONGPRESS_MS = 350;
+
+let gesture = null;
+
+boardEl.addEventListener('pointerdown', e => {
+  if (paused || gameOver) return;
+  gesture = {
+    startX: e.clientX,
+    startY: e.clientY,
+    startT: performance.now(),
+    pointerId: e.pointerId,
+    longTimer: setTimeout(() => {
+      if (gesture) controls.softDrop();
+    }, LONGPRESS_MS),
+  };
+  boardEl.setPointerCapture(e.pointerId);
+});
+
+boardEl.addEventListener('pointerup', e => {
+  if (!gesture || e.pointerId !== gesture.pointerId) return;
+  clearTimeout(gesture.longTimer);
+
+  const dx = e.clientX - gesture.startX;
+  const dy = e.clientY - gesture.startY;
+  const dt = performance.now() - gesture.startT;
+
+  if (dt < TAP_MAX_MS && Math.abs(dx) < TAP_MAX_PX && Math.abs(dy) < TAP_MAX_PX) {
+    controls.rotate();
+  } else if (dy > SWIPE_VDOWN_PX && Math.abs(dy) > Math.abs(dx)) {
+    controls.hardDrop();
+  } else if (Math.abs(dx) > SWIPE_MIN_PX && Math.abs(dx) > Math.abs(dy)) {
+    if (dx < 0) controls.left(); else controls.right();
+  }
+
+  gesture = null;
+  if (boardEl.hasPointerCapture(e.pointerId)) boardEl.releasePointerCapture(e.pointerId);
+});
+
+boardEl.addEventListener('pointercancel', e => {
+  if (gesture) {
+    clearTimeout(gesture.longTimer);
+    gesture = null;
+  }
+});
 
 const themeToggle = document.getElementById('theme-toggle');
 const toggleIcon = themeToggle.querySelector('.toggle-icon');
