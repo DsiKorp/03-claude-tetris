@@ -10,10 +10,20 @@ const COLORS = [
   '#ffd54f', // O - yellow
   '#ba68c8', // T - purple
   '#81c784', // S - green
-  '#e57373', // Z - red
+  '#ef5350', // Z - red (shifted from #e57373 to free up #ff5252 for Bomba)
   '#90caf9', // J - pale blue
   '#ffb74d', // L - orange
   '#9e9e9e', // N - tuerca (gris metálico)
+  '#ff5252', // 9 Bomba
+  '#ffeb3b', // 10 Rayo
+  '#e040fb', // 11 Tinte
+  '#795548', // 12 Gravedad
+  '#80deea', // 13 Congelar
+  '#aed581', // 14 P
+  '#ff8a65', // 15 U
+  '#ce93d8', // 16 Y
+  '#fff176', // 17 1x1
+  '#4fc3f7', // 18 3x3 hueca
 ];
 
 const PIECES = [
@@ -219,6 +229,109 @@ function merge() {
         board[current.y + r][current.x + c] = current.shape[r][c];
 }
 
+// ---- Power-up effects ----
+function effectBomba() {
+  // Clear a 3x3 area centered on the piece's geometric center.
+  const rows = current.shape.length;
+  const cols = current.shape[0].length;
+  const cc = current.x + Math.floor(cols / 2);
+  const cr = current.y + Math.floor(rows / 2);
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      const nr = cr + dr;
+      const nc = cc + dc;
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+      if (board[nr][nc]) {
+        board[nr][nc] = 0;
+        score += 5;
+      }
+    }
+  }
+  floatingTexts.push({ x: cc, y: cr, text: 'BOOM', color: COLORS[9], ttl: 900 });
+  play('power');
+}
+
+function effectRayo() {
+  // Pick the row OR column that clears the most blocks.
+  let bestRow = -1, bestRowCount = 0;
+  for (let r = 0; r < ROWS; r++) {
+    let n = 0;
+    for (let c = 0; c < COLS; c++) if (board[r][c]) n++;
+    if (n > bestRowCount) { bestRowCount = n; bestRow = r; }
+  }
+  let bestCol = -1, bestColCount = 0;
+  for (let c = 0; c < COLS; c++) {
+    let n = 0;
+    for (let r = 0; r < ROWS; r++) if (board[r][c]) n++;
+    if (n > bestColCount) { bestColCount = n; bestCol = c; }
+  }
+  if (bestColCount >= bestRowCount && bestCol >= 0) {
+    for (let r = 0; r < ROWS; r++) if (board[r][bestCol]) { board[r][bestCol] = 0; score += 2; }
+    floatingTexts.push({ x: bestCol, y: Math.floor(ROWS / 2), text: 'RAYO!', color: COLORS[10], ttl: 900 });
+  } else if (bestRow >= 0) {
+    for (let c = 0; c < COLS; c++) if (board[bestRow][c]) { board[bestRow][c] = 0; score += 2; }
+    floatingTexts.push({ x: Math.floor(COLS / 2), y: bestRow, text: 'RAYO!', color: COLORS[10], ttl: 900 });
+  }
+  play('power');
+}
+
+function effectTinte() {
+  // Tally colors on the board. Pick the most common (excluding 0).
+  const counts = new Array(COLORS.length).fill(0);
+  let total = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (board[r][c]) { counts[board[r][c]]++; total++; }
+  if (!total) { play('power'); return; }
+  let target = 1;
+  for (let i = 2; i < counts.length; i++) {
+    if (counts[i] > counts[target]) target = i;
+  }
+  if (target === current.type) { play('power'); return; }
+  let changed = 0;
+  for (let r = 0; r < ROWS; r++)
+    for (let c = 0; c < COLS; c++)
+      if (board[r][c] === target) { board[r][c] = current.type; changed++; }
+  score += changed * 2;
+  floatingTexts.push({ x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2), text: 'TINTE', color: COLORS[11], ttl: 900 });
+  play('power');
+}
+
+function effectGravedad() {
+  // Compact each column: shift non-zero cells down.
+  let dropped = 0;
+  for (let c = 0; c < COLS; c++) {
+    const stack = [];
+    for (let r = 0; r < ROWS; r++) if (board[r][c]) stack.push(board[r][c]);
+    for (let r = 0; r < ROWS; r++) {
+      const v = r < ROWS - stack.length ? 0 : stack[r - (ROWS - stack.length)];
+      if (board[r][c] !== v) {
+        if (board[r][c] && !v) dropped++;
+        board[r][c] = v;
+      }
+    }
+  }
+  score += dropped * 3;
+  floatingTexts.push({ x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2), text: 'GRAVEDAD', color: COLORS[12], ttl: 900 });
+  play('power');
+}
+
+function effectCongelar() {
+  frozenUntil = performance.now() + 5000;
+  floatingTexts.push({ x: Math.floor(COLS / 2), y: Math.floor(ROWS / 2), text: 'FROZEN 5s', color: COLORS[13], ttl: 1500 });
+  play('power');
+}
+
+function applyPowerUp(effect) {
+  switch (effect) {
+    case 'bomba':    effectBomba();    break;
+    case 'rayo':     effectRayo();     break;
+    case 'tinte':    effectTinte();    break;
+    case 'gravedad': effectGravedad(); break;
+    case 'congelar': effectCongelar(); break;
+  }
+}
+
 function clearLines() {
   let cleared = 0;
   for (let r = ROWS - 1; r >= 0; r--) {
@@ -263,6 +376,11 @@ function softDrop() {
 
 function lockPiece() {
   merge();
+  if (current && current.type >= 9 && current.type <= 13) {
+    const meta = PIECE_META[current.type];
+    if (meta && meta.effect) applyPowerUp(meta.effect);
+  }
+  play('lock');
   clearLines();
   spawn();
 }
@@ -291,6 +409,18 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
   // highlight
   context.fillStyle = 'rgba(255,255,255,0.12)';
   context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+  // power-up letter overlay (9-13)
+  if (colorIndex >= 9 && colorIndex <= 13) {
+    const meta = PIECE_META[colorIndex];
+    if (meta && meta.letter) {
+      context.globalAlpha = alpha ?? 1;
+      context.fillStyle = '#000';
+      context.font = `bold ${Math.floor(size * 0.55)}px 'Courier New', monospace`;
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(meta.letter, x * size + size / 2, y * size + size / 2);
+    }
+  }
   context.globalAlpha = 1;
 }
 
@@ -331,6 +461,24 @@ function draw() {
   for (let r = 0; r < current.shape.length; r++)
     for (let c = 0; c < current.shape[r].length; c++)
       drawBlock(ctx, current.x + c, current.y + r, current.shape[r][c], BLOCK);
+
+  // floating texts (power-up effects, bonuses)
+  if (floatingTexts && floatingTexts.length) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const ft of floatingTexts) {
+      const fade = Math.max(0, Math.min(1, ft.ttl / 1000));
+      const rise = (1 - fade) * 30;
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = ft.color;
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 3;
+      ctx.font = "bold 18px 'Courier New', monospace";
+      ctx.strokeText(ft.text, ft.x * BLOCK + BLOCK / 2, ft.y * BLOCK + BLOCK / 2 - rise);
+      ctx.fillText(ft.text, ft.x * BLOCK + BLOCK / 2, ft.y * BLOCK + BLOCK / 2 - rise);
+    }
+    ctx.globalAlpha = 1;
+  }
 }
 
 function drawNext() {
@@ -371,13 +519,23 @@ function togglePause() {
 function loop(ts) {
   const dt = ts - lastTime;
   lastTime = ts;
-  dropAccum += dt;
-  if (dropAccum >= dropInterval) {
-    dropAccum = 0;
-    if (!collide(current.shape, current.x, current.y + 1)) {
-      current.y++;
-    } else {
-      lockPiece();
+  const frozen = ts < frozenUntil;
+  if (!frozen) {
+    dropAccum += dt;
+    if (dropAccum >= dropInterval) {
+      dropAccum = 0;
+      if (!collide(current.shape, current.x, current.y + 1)) {
+        current.y++;
+      } else {
+        lockPiece();
+      }
+    }
+  }
+  // Decay floating texts.
+  if (floatingTexts && floatingTexts.length) {
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+      floatingTexts[i].ttl -= dt;
+      if (floatingTexts[i].ttl <= 0) floatingTexts.splice(i, 1);
     }
   }
   if (gameOver) return;
