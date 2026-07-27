@@ -1,6 +1,6 @@
 # Tetris
 
-Implementación del clásico **Tetris** en JavaScript vanilla, usando HTML5 Canvas y CSS. Sin dependencias externas, sin frameworks, sin proceso de build: solo abrir y jugar.
+Implementación del clásico **Tetris** en JavaScript vanilla, usando HTML5 Canvas y CSS. Sin dependencias externas, sin frameworks, sin proceso de build: solo abrir y jugar. Con power-ups, pentominoes, combo, modo desafío, habilidades y hold.
 
 ![Tech](https://img.shields.io/badge/HTML5-Canvas-orange)
 ![Tech](https://img.shields.io/badge/CSS3-blueviolet)
@@ -95,6 +95,10 @@ Después abre `http://localhost:8000` en el navegador.
 | `Espacio` | Hard drop (caída instantánea)     |
 | `P`       | Pausar / reanudar                 |
 | `R`       | Reiniciar la partida              |
+| `C` o `Shift` | Hold (reservar / intercambiar pieza) |
+| `1` | Habilidad: ver siguientes 5 piezas |
+| `2` | Habilidad: lentitud 10s           |
+| `3` | Habilidad: intercambiar con pool  |
 
 ### Controles en móvil
 
@@ -126,6 +130,56 @@ El juego es totalmente jugable en pantallas táctiles. Dispone de dos sistemas q
 - `touch-action: none` en el tablero evita el scroll/zoom del navegador al jugar.
 - Botones con `touch-action: manipulation` para suprimir el zoom por doble-tap.
 - Render crisp con `image-rendering: pixelated` al escalar el canvas por CSS.
+
+---
+
+## Features
+
+### Modos de juego
+
+Al iniciar se elige modo en la pantalla de inicio:
+
+- **Clásico** — endless Tetris con todos los power-ups, pentominoes, combos y habilidades disponibles. La velocidad aumenta cada 10 líneas.
+- **Reto: 40 líneas en 2 min** — contrarreloj. Limpia 40 líneas antes de que se agote el tiempo para ganar. HUD muestra cronómetro y progreso. Los power-ups siguen activos (pueden ayudar o complicar).
+
+### Power-ups (5)
+
+Aparecen con ~6% de probabilidad por pieza (30% combinado). Cada uno tiene un efecto único al bloquearse la pieza:
+
+| Power-up | Símbolo | Efecto |
+| -------- | ------- | ------ |
+| Bomba    | `B`     | Destruye un área 3×3 centrada en la pieza. |
+| Rayo     | `R`     | Limpia la fila **o** columna con más bloques. |
+| Tinte    | `T`     | Convierte todos los bloques del color más común al color de la pieza. |
+| Gravedad | `G`     | Compacta cada columna (los huecos caen al fondo). |
+| Congelar | `F`     | Pausa la caída automática 5 segundos (soft/hard drop siguen funcionando). |
+
+### Piezas nuevas
+
+Además de los 7 tetrominós estándar (I, O, T, S, Z, J, L) y la pieza custom "N tuerca" (decorativa):
+
+- **Pentominoes** (P, U, Y) — 5 bloques cada una, aparecen con ~4% combinado.
+- **Pieza 1×1** — bloque único, +100 al bloquearse. 1% de spawn.
+- **Pieza 3×3 hueca** — marco de 8 bloques con un hueco central, +200 al bloquearse. 1% de spawn.
+
+### Combo y puntuación avanzada
+
+- **Combo**: cada clear consecutivo multiplica la puntuación (+50% por clear encadenado). Se reinicia si una pieza se bloquea sin limpiar líneas.
+- **T-spin**: rotar la T en un hueco con 3+ esquinas bloqueadas concede +400 × nivel y un multiplicador extra.
+- **B2B (back-to-back)**: dos Tetrises (4 líneas) consecutivos otorgan un multiplicador ×1.5. Cualquier clear de menos de 4 líneas rompe la cadena.
+- **Perfect Clear**: limpiar todas las filas de una vez (tablero vacío) concede +2000 × nivel.
+
+### Habilidades (energy bar)
+
+La barra de energía se llena con clears: 1 punto cada 10 líneas, máximo 3. Pulsa `1`, `2` o `3` (o toca los botones del HUD) para activar:
+
+1. **Ver siguientes 5** — muestra las 5 próximas piezas en el preview durante 4 segundos, ciclando automáticamente.
+2. **Lentitud 10s** — duplica el intervalo de caída durante 10 segundos.
+3. **Intercambiar** — reemplaza la pieza actual por una aleatoria del pool de las próximas 5. Si la pieza intercambiada colisiona al spawn, se cancela sin reembolso.
+
+### Hold
+
+`C` o `Shift` envía la pieza actual a la "bandeja" de Hold. Si ya hay una pieza en Hold, la intercambia con la actual. **Solo se puede usar una vez por pieza**: tras usarla, el slot se atenúa hasta que la pieza actual se bloquee.
 
 ---
 
