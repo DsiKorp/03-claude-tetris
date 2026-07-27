@@ -502,3 +502,66 @@ kbd {
   margin: 0;
   opacity: 0.7;
 }
+
+/* ---- Energy bar + abilities ---- */
+.energy-bar {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.energy-seg {
+  width: 18px;
+  height: 14px;
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-radius: 2px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.energy-seg.filled {
+  background: #7aa2f7;
+  border-color: #7aa2f7;
+  box-shadow: 0 0 8px rgba(122, 162, 247, 0.6);
+}
+
+.ability-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.ab-btn {
+  flex: 1 1 0;
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  color: var(--kbd-text);
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 4px 2px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, transform 0.05s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ab-btn:hover,
+.ab-btn:active {
+  background: #7aa2f7;
+  color: #0f0f17;
+  transform: scale(0.96);
+}
+
+.ability-status {
+  font-size: 10px;
+  min-height: 12px;
+  margin-top: 2px;
+  color: #80deea;
+  letter-spacing: 1px;
+}

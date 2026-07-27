@@ -127,6 +127,8 @@ const challengeTargetSection = document.getElementById('challenge-target-section
 const timeEl = document.getElementById('time');
 const linesDoneEl = document.getElementById('lines-done');
 const linesTargetEl = document.getElementById('lines-target');
+const energySegs = Array.from(document.querySelectorAll('.energy-seg'));
+const abilityStatusEl = document.getElementById('ability-status');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
@@ -191,6 +193,91 @@ function randomPiece() {
   const type = pickWeighted();
   const shape = PIECES[type].map(row => [...row]);
   return { type, shape, x: Math.floor(COLS / 2) - Math.floor(shape[0].length / 2), y: 0 };
+}
+
+function fillQueue() {
+  while (nextQueue.length < 5) nextQueue.push(randomPiece());
+}
+
+function spawnXFor(shape) {
+  return Math.floor(COLS / 2) - Math.floor(shape[0].length / 2);
+}
+
+function updateEnergyBar() {
+  if (!energySegs || !energySegs.length) return;
+  for (let i = 0; i < energySegs.length; i++) {
+    energySegs[i].classList.toggle('filled', i < energy);
+  }
+}
+
+function updateAbilityStatus() {
+  if (!abilityStatusEl) return;
+  const parts = [];
+  if (previewHold > 0) {
+    const sec = Math.ceil(previewHold / 1000);
+    parts.push(`NEXTx5 ${sec}s`);
+  }
+  if (performance.now() < slowmoUntil) {
+    const sec = Math.ceil((slowmoUntil - performance.now()) / 1000);
+    parts.push(`SLOW ${sec}s`);
+  }
+  abilityStatusEl.textContent = parts.join(' · ');
+}
+
+function gainEnergy() {
+  const milestone = Math.floor(lines / 10);
+  if (milestone > lastEnergyMilestone) {
+    const gain = Math.min(3 - energy, milestone - lastEnergyMilestone);
+    if (gain > 0) {
+      energy += gain;
+      lastEnergyMilestone = milestone;
+      updateEnergyBar();
+      play('energy');
+    }
+  }
+}
+
+function ability1() {
+  if (paused || gameOver || energy < 1) return;
+  if (!nextQueue || nextQueue.length < 5) return;
+  energy--;
+  previewHold = 4000;
+  previewIndex = 0;
+  play('energy');
+  updateEnergyBar();
+  updateAbilityStatus();
+  floatingTexts.push({ x: Math.floor(COLS / 2), y: 1, text: 'PREVIEW 5', color: '#7aa2f7', ttl: 800 });
+}
+
+function ability2() {
+  if (paused || gameOver || energy < 1) return;
+  if (performance.now() < slowmoUntil) return;
+  energy--;
+  slowmoUntil = performance.now() + 10000;
+  play('energy');
+  updateEnergyBar();
+  updateAbilityStatus();
+  floatingTexts.push({ x: Math.floor(COLS / 2), y: 1, text: 'SLOW 10s', color: '#80deea', ttl: 1000 });
+}
+
+function ability3() {
+  if (paused || gameOver || !current || energy < 1) return;
+  if (!nextQueue || nextQueue.length < 1) return;
+  // Pick a random piece from the queue (excluding index 0 to avoid trivial swap with next).
+  const span = Math.min(5, nextQueue.length);
+  const idx = Math.floor(Math.random() * span);
+  const candidate = nextQueue[idx];
+  const testX = spawnXFor(candidate.shape);
+  if (collide(candidate.shape, testX, 0)) return; // abort silently, no refund
+  const newCurrent = { type: candidate.type, shape: candidate.shape.map(r => [...r]), x: testX, y: 0 };
+  // Push the OLD current into the slot we pulled from, so the queue stays the same length semantically.
+  nextQueue[idx] = { type: current.type, shape: current.shape.map(r => [...r]), x: 0, y: 0 };
+  current = newCurrent;
+  energy--;
+  play('swap');
+  updateEnergyBar();
+  updateAbilityStatus();
+  floatingTexts.push({ x: current.x + 1, y: current.y, text: 'SWAP', color: '#fff176', ttl: 800 });
 }
 
 function collide(shape, ox, oy) {
@@ -409,6 +496,7 @@ function clearLines() {
     // Level & speed
     level = Math.floor(lines / 10) + 1;
     dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    gainEnergy();
     updateHUD();
   } else {
     // No line clear this lock: reset combo (but only if the piece actually locked, not during touch drags etc.)
@@ -468,8 +556,9 @@ function lockPiece() {
 }
 
 function spawn() {
-  current = next;
-  next = randomPiece();
+  if (nextQueue.length === 0) fillQueue();
+  current = nextQueue.shift();
+  fillQueue();
   if (collide(current.shape, current.x, current.y)) {
     endGame();
   }
@@ -567,7 +656,24 @@ function drawNext() {
   const NB = 30;
   const VIEW = 4; // 4x4 preview window
   nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-  const shape = next.shape;
+  if (!nextQueue || nextQueue.length === 0) return;
+  // If preview-5 ability is active, cycle through pieces.
+  let previewPiece = null;
+  if (previewHold > 0 && nextQueue.length >= 5) {
+    const step = Math.floor((4000 - previewHold) / 800);
+    const idx = Math.min(step, nextQueue.length - 1);
+    previewPiece = nextQueue[idx];
+    // Frame + label
+    nextCtx.strokeStyle = '#7aa2f7';
+    nextCtx.lineWidth = 2;
+    nextCtx.strokeRect(1, 1, nextCanvas.width - 2, nextCanvas.height - 2);
+    nextCtx.fillStyle = '#7aa2f7';
+    nextCtx.font = "10px 'Courier New', monospace";
+    nextCtx.textAlign = 'left';
+    nextCtx.textBaseline = 'top';
+    nextCtx.fillText(`${idx + 1}/5`, 4, 4);
+  }
+  const shape = (previewPiece || nextQueue[0]).shape;
   // Compute actual bbox of non-zero cells so 3x3 pieces aren't top-left aligned.
   let minR = shape.length, maxR = -1, minC = shape[0].length, maxC = -1;
   for (let r = 0; r < shape.length; r++)
@@ -640,9 +746,11 @@ function loop(ts) {
   const dt = ts - lastTime;
   lastTime = ts;
   const frozen = ts < frozenUntil;
+  const slowmo = ts < slowmoUntil;
+  const effectiveDrop = slowmo ? dropInterval * 2 : dropInterval;
   if (!frozen) {
     dropAccum += dt;
-    if (dropAccum >= dropInterval) {
+    if (dropAccum >= effectiveDrop) {
       dropAccum = 0;
       if (!collide(current.shape, current.x, current.y + 1)) {
         current.y++;
@@ -668,6 +776,18 @@ function loop(ts) {
       challengeTimeLeft = 0;
       endChallenge(false);
     }
+  }
+  // Ability timers
+  if (previewHold > 0) {
+    previewHold -= dt;
+    if (previewHold <= 0) { previewHold = 0; drawNext(); }
+    else { drawNext(); }
+    updateAbilityStatus();
+  }
+  if (performance.now() < slowmoUntil) {
+    updateAbilityStatus();
+  } else if (abilityStatusEl && abilityStatusEl.textContent.includes('SLOW')) {
+    updateAbilityStatus();
   }
   if (gameOver) return;
   draw();
@@ -703,15 +823,17 @@ function init(startMode = 'clasico') {
   challengeWinFlag = false;
   frozenUntil = 0;
   nextQueue = [];
+  fillQueue();
   floatingTexts = [];
   flashUntil = 0;
   flashColor = '#fff';
   slowmoUntil = 0;
   previewHold = 0;
   previewIndex = 0;
-  next = randomPiece();
   spawn();
   updateHUD();
+  updateEnergyBar();
+  updateAbilityStatus();
   overlay.classList.add('hidden');
   if (startScreen) startScreen.classList.add('hidden');
   if (challengeTimeSection) challengeTimeSection.style.display = mode === 'reto' ? '' : 'none';
@@ -775,6 +897,9 @@ const controls = {
   restart() {
     init(mode);
   },
+  ability1() { ability1(); },
+  ability2() { ability2(); },
+  ability3() { ability3(); },
 };
 
 document.addEventListener('keydown', e => {
@@ -787,6 +912,9 @@ document.addEventListener('keydown', e => {
     case 'Space':      e.preventDefault(); controls.hardDrop();    break;
     case 'KeyP':                           controls.togglePause(); break;
     case 'KeyR':                           controls.restart();     break;
+    case 'Digit1':                         controls.ability1();    break;
+    case 'Digit2':                         controls.ability2();    break;
+    case 'Digit3':                         controls.ability3();    break;
   }
 });
 
@@ -827,6 +955,10 @@ function bindTouchButton(el) {
 }
 
 document.querySelectorAll('.tc-btn').forEach(bindTouchButton);
+document.querySelectorAll('.ab-btn').forEach(el => {
+  el.addEventListener('pointerdown', e => { e.preventDefault(); ensureAudio(); controls[el.dataset.action](); });
+  el.addEventListener('click', e => e.preventDefault());
+});
 
 const TAP_MAX_MS = 250;
 const TAP_MAX_PX = 10;
