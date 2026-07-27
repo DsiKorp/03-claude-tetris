@@ -129,6 +129,8 @@ const linesDoneEl = document.getElementById('lines-done');
 const linesTargetEl = document.getElementById('lines-target');
 const energySegs = Array.from(document.querySelectorAll('.energy-seg'));
 const abilityStatusEl = document.getElementById('ability-status');
+const holdCanvas = document.getElementById('hold-canvas');
+const holdCtx = holdCanvas ? holdCanvas.getContext('2d') : null;
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 
@@ -562,6 +564,8 @@ function spawn() {
   if (collide(current.shape, current.x, current.y)) {
     endGame();
   }
+  holdUsed = false;
+  updateHoldDim();
   drawNext();
 }
 
@@ -687,6 +691,57 @@ function drawNext() {
   for (let r = 0; r < shape.length; r++)
     for (let c = 0; c < shape[r].length; c++)
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
+}
+
+function drawHold() {
+  if (!holdCtx || !holdCanvas) return;
+  const NB = 30;
+  const VIEW = 4;
+  holdCtx.clearRect(0, 0, holdCanvas.width, holdCanvas.height);
+  if (!hold) return;
+  const shape = hold.shape;
+  let minR = shape.length, maxR = -1, minC = shape[0].length, maxC = -1;
+  for (let r = 0; r < shape.length; r++)
+    for (let c = 0; c < shape[r].length; c++)
+      if (shape[r][c]) { if (r < minR) minR = r; if (r > maxR) maxR = r; if (c < minC) minC = c; if (c > maxC) maxC = c; }
+  if (maxR < 0) return;
+  const w = maxC - minC + 1;
+  const h = maxR - minR + 1;
+  const offX = Math.floor((VIEW - w) / 2) - minC;
+  const offY = Math.floor((VIEW - h) / 2) - minR;
+  for (let r = 0; r < shape.length; r++)
+    for (let c = 0; c < shape[r].length; c++)
+      drawBlock(holdCtx, offX + c, offY + r, shape[r][c], NB);
+}
+
+function updateHoldDim() {
+  if (!holdCanvas) return;
+  holdCanvas.classList.toggle('dim-when-used', holdUsed);
+}
+
+function doHold() {
+  if (paused || gameOver || !current || holdUsed) return;
+  if (!hold) {
+    // Store current, advance to next.
+    hold = { type: current.type, shape: PIECES[current.type].map(r => [...r]) };
+    spawn();
+  } else {
+    // Swap with hold.
+    const tmp = { type: current.type, shape: current.shape.map(r => [...r]) };
+    const newType = hold.type;
+    const newShape = PIECES[newType].map(r => [...r]);
+    const testX = spawnXFor(newShape);
+    if (collide(newShape, testX, 0)) {
+      // Swap would cause immediate game over; abort without changing state.
+      return;
+    }
+    current = { type: newType, shape: newShape, x: testX, y: 0 };
+    hold = tmp;
+  }
+  holdUsed = true;
+  drawHold();
+  updateHoldDim();
+  play('hold');
 }
 
 function endGame() {
@@ -834,6 +889,8 @@ function init(startMode = 'clasico') {
   updateHUD();
   updateEnergyBar();
   updateAbilityStatus();
+  drawHold();
+  updateHoldDim();
   overlay.classList.add('hidden');
   if (startScreen) startScreen.classList.add('hidden');
   if (challengeTimeSection) challengeTimeSection.style.display = mode === 'reto' ? '' : 'none';
@@ -900,6 +957,7 @@ const controls = {
   ability1() { ability1(); },
   ability2() { ability2(); },
   ability3() { ability3(); },
+  hold() { doHold(); },
 };
 
 document.addEventListener('keydown', e => {
@@ -915,6 +973,9 @@ document.addEventListener('keydown', e => {
     case 'Digit1':                         controls.ability1();    break;
     case 'Digit2':                         controls.ability2();    break;
     case 'Digit3':                         controls.ability3();    break;
+    case 'KeyC':
+    case 'ShiftLeft':
+    case 'ShiftRight':                     controls.hold();        break;
   }
 });
 

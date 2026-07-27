@@ -369,12 +369,14 @@ kbd {
     display: none;
   }
 
-  .panel-section:has(#next-canvas) {
+  .panel-section:has(#next-canvas),
+  .panel-section:has(#hold-canvas) {
     flex: 0 0 auto;
     margin-left: auto;
   }
 
-  #next-canvas {
+  #next-canvas,
+  #hold-canvas {
     width: 44px !important;
     height: 44px !important;
     image-rendering: pixelated;
@@ -564,4 +566,17 @@ kbd {
   margin-top: 2px;
   color: #80deea;
   letter-spacing: 1px;
+}
+
+/* ---- Hold canvas ---- */
+#hold-canvas {
+  display: block;
+  border: 1px solid var(--border);
+  background: var(--canvas-bg);
+  border-radius: 4px;
+  transition: background 0.25s, border-color 0.25s, opacity 0.2s;
+}
+
+.dim-when-used {
+  opacity: 0.35;
 }
